@@ -469,6 +469,15 @@ app.get("/proxy/:id/segment", (req, res) => {
 // ──────────────────────────────────────────
 // دالة التشغيل الرئيسية (الساروت)
 // ──────────────────────────────────────────
+// مسار الرابط الخام لـ OBS (بحال لي كان خدام فبيسيك)
+app.get("/stream/:id/raw", (req, res) => {
+  const state = matchesState[req.params.id];
+  if (state && state.latestM3u8) {
+    res.type("text/plain").send(state.latestM3u8);
+  } else {
+    res.status(404).type("text/plain").send("NO_STREAM");
+  }
+});
 async function start() {
   process.on("unhandledRejection", (reason) => {
     console.error(`[✗] Unhandled Rejection: ${reason}`);
