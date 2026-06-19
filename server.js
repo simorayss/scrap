@@ -469,13 +469,14 @@ app.get("/proxy/:id/segment", (req, res) => {
 // ──────────────────────────────────────────
 // دالة التشغيل الرئيسية (الساروت)
 // ──────────────────────────────────────────
-// مسار الرابط الخام لـ OBS (بحال لي كان خدام فبيسيك)
+// مسار التحويل لـ OBS (باش OBS ياخد الرابط أوتوماتيكيا)
 app.get("/stream/:id/raw", (req, res) => {
   const state = matchesState[req.params.id];
   if (state && state.latestM3u8) {
-    res.type("text/plain").send(state.latestM3u8);
+    // هادي هي الضربة القاضية: التحويل ديريكت للرابط الأصلي!
+    res.redirect(state.latestM3u8);
   } else {
-    res.status(404).type("text/plain").send("NO_STREAM");
+    res.status(404).send("NO_STREAM");
   }
 });
 async function start() {
