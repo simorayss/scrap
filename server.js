@@ -404,19 +404,25 @@ function resolveUrl(baseUrl, targetUrl) {
 /* ============================================================
    HLS Proxy endpoint — يبث الـ m3u8 والقطع (TS) عبر البروكسي
    ============================================================ */
+/* ============================================================
+   HLS Proxy endpoint — الوحش اللي كيهرس التشفير والقوائم الفرعية
+   ============================================================ */
 app.get("/proxy/:id/stream.m3u8", async (req, res) => {
   const state = matchesState[req.params.id];
-  if (!state || !state.latestM3u8) {
+  
+  // إيلا كان الرابط جاي من قائمة فرعية، غناخدوه من الرابط، ويلا مكانش غناخدو الأصلي
+  const m3u8Url = req.query.url ? Buffer.from(req.query.url, 'base64').toString('utf-8') : (state ? state.latestM3u8 : null);
+  
+  if (!m3u8Url) {
     return res.status(404).send("Stream not found or not ready yet.");
   }
 
-  const m3u8Url = state.latestM3u8;
-  const referer = state.url || 'https://korazon.life/';
-  const cookies = state.cookies || null;
+  const referer = (state && state.url) ? state.url : 'https://korazon.life/';
+  const cookies = (state && state.cookies) ? state.cookies : null;
 
   fetchUrl(m3u8Url, referer, cookies, (err, response) => {
     if (err) {
-      console.error(`[✗][${state.id}] Proxy fetch error: ${err.message}`);
+      console.error(`[✗] Proxy fetch error: ${err.message}`);
       return res.status(502).send("Failed to fetch stream.");
     }
 
@@ -429,13 +435,29 @@ app.get("/proxy/:id/stream.m3u8", async (req, res) => {
       const baseUrl = m3u8Url;
       const rewritten = body.split('\n').map((line) => {
         line = line.trim();
-        if (!line || line.startsWith('#')) return line;
-        const absoluteUrl = resolveUrl(baseUrl, line);
-        if (absoluteUrl.includes('.ts') || absoluteUrl.includes('.mp4') || absoluteUrl.includes('.m4s')) {
-          const encoded = Buffer.from(absoluteUrl).toString('base64');
-          return `${req.protocol}://${req.get('host')}/proxy/${req.params.id}/segment?url=${encoded}`;
+        
+        // 1. هرس حماية مفاتيح التشفير (AES-128 Keys)
+        if (line.startsWith('#EXT-X-KEY:')) {
+          return line.replace(/URI="([^"]+)"/, (match, uri) => {
+            const absoluteUri = resolveUrl(baseUrl, uri);
+            const encoded = Buffer.from(absoluteUri).toString('base64');
+            return `URI="${req.protocol}://${req.get('host')}/proxy/${req.params.id}/segment?url=${encoded}"`;
+          });
         }
-        return absoluteUrl;
+        
+        if (!line || line.startsWith('#')) return line;
+        
+        const absoluteUrl = resolveUrl(baseUrl, line);
+        
+        // 2. معالجة القوائم الفرعية (Sub-playlists)
+        if (absoluteUrl.includes('.m3u8')) {
+          const encoded = Buffer.from(absoluteUrl).toString('base64');
+          return `${req.protocol}://${req.get('host')}/proxy/${req.params.id}/stream.m3u8?url=${encoded}`;
+        }
+        
+        // 3. معالجة أجزاء الفيديو (.ts / .m4s)
+        const encoded = Buffer.from(absoluteUrl).toString('base64');
+        return `${req.protocol}://${req.get('host')}/proxy/${req.params.id}/segment?url=${encoded}`;
       }).join('\n');
 
       res.send(rewritten);
