@@ -441,7 +441,7 @@ app.get("/proxy/:id/stream.m3u8", async (req, res) => {
           return line.replace(/URI="([^"]+)"/, (match, uri) => {
             const absoluteUri = resolveUrl(baseUrl, uri);
             const encoded = Buffer.from(absoluteUri).toString('base64');
-            return `URI="${req.protocol}://${req.get('host')}/proxy/${req.params.id}/segment?url=${encoded}"`;
+            return `URI="https://${req.get('host')}/proxy/${req.params.id}/segment?url=${encoded}"`;
           });
         }
         
@@ -452,12 +452,12 @@ app.get("/proxy/:id/stream.m3u8", async (req, res) => {
         // 2. معالجة القوائم الفرعية (Sub-playlists)
         if (absoluteUrl.includes('.m3u8')) {
           const encoded = Buffer.from(absoluteUrl).toString('base64');
-          return `${req.protocol}://${req.get('host')}/proxy/${req.params.id}/stream.m3u8?url=${encoded}`;
+          return `https://${req.get('host')}/proxy/${req.params.id}/stream.m3u8?url=${encoded}`;
         }
         
         // 3. معالجة أجزاء الفيديو (.ts / .m4s)
         const encoded = Buffer.from(absoluteUrl).toString('base64');
-        return `${req.protocol}://${req.get('host')}/proxy/${req.params.id}/segment?url=${encoded}`;
+        return `https://${req.get('host')}/proxy/${req.params.id}/segment?url=${encoded}`;
       }).join('\n');
 
       res.send(rewritten);
