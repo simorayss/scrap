@@ -434,30 +434,30 @@ app.get("/proxy/:id/stream.m3u8", async (req, res) => {
     response.on('end', () => {
       const baseUrl = m3u8Url;
       const rewritten = body.split('\n').map((line) => {
-        line = line.trim();
-        
-        // 1. هرس حماية مفاتيح التشفير (AES-128 Keys)
-        if (line.startsWith('#EXT-X-KEY:')) {
-          return line.replace(/URI="([^"]+)"/, (match, uri) => {
-            const absoluteUri = resolveUrl(baseUrl, uri);
-            const encoded = Buffer.from(absoluteUri).toString('base64');
-            return `URI="https://${req.get('host')}/proxy/${req.params.id}/segment?url=${encoded}"`;
-          });
-        }
-        
-        if (!line || line.startsWith('#')) return line;
-        
-        const absoluteUrl = resolveUrl(baseUrl, line);
-        
-        // 2. معالجة القوائم الفرعية (Sub-playlists)
-        if (absoluteUrl.includes('.m3u8')) {
-          const encoded = Buffer.from(absoluteUrl).toString('base64');
-          return `https://${req.get('host')}/proxy/${req.params.id}/stream.m3u8?url=${encoded}`;
-        }
-        
-        // 3. معالجة أجزاء الفيديو (.ts / .m4s)
-        const encoded = Buffer.from(absoluteUrl).toString('base64');
-        return `https://${req.get('host')}/proxy/${req.params.id}/segment?url=${encoded}`;
+line = line.trim();
+
+// 1. هرس حماية مفاتيح التشفير (AES-128 Keys)
+if (line.startsWith('#EXT-X-KEY:')) {
+  return line.replace(/URI="([^"]+)"/, (match, uri) => {
+    const absoluteUri = resolveUrl(baseUrl, uri);
+    const encoded = Buffer.from(absoluteUri).toString('base64');
+    return `URI="https://${req.get('host')}/proxy/${req.params.id}/segment?url=${encodeURIComponent(encoded)}"`;
+  });
+}
+
+if (!line || line.startsWith('#')) return line;
+
+const absoluteUrl = resolveUrl(baseUrl, line);
+
+// 2. معالجة القوائم الفرعية (Sub-playlists)
+if (absoluteUrl.includes('.m3u8')) {
+  const encoded = Buffer.from(absoluteUrl).toString('base64');
+  return `https://${req.get('host')}/proxy/${req.params.id}/stream.m3u8?url=${encodeURIComponent(encoded)}`;
+}
+
+// 3. معالجة أجزاء الفيديو (.ts / .m4s)
+const encoded = Buffer.from(absoluteUrl).toString('base64');
+return `https://${req.get('host')}/proxy/${req.params.id}/segment?url=${encodeURIComponent(encoded)}`;
       }).join('\n');
 
       res.send(rewritten);
